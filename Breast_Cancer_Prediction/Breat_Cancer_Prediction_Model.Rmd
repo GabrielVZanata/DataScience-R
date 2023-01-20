@@ -1,0 +1,125 @@
+---
+title: "Breast Cancer Prediction Model"
+author: "Gabriel Valverde Zanata da Silva"
+date: "2023-01-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introdução e Objetivos
+
+Este projeto tem como objetivo utilizar os dados do Database sobre Câncer de Mama da Universidade de Wisconsin Hospitals, Madison de Dr. William H. Wolberg, para desenvolver um modelo preditivo capaz de prever se o câncer é benígno ou malígno com base nas informações disponíveis.
+
+Os atributos da base de dados são:
+
+| Attribute | Domain                                 |
+|-----------|:---------------------------------------|
+| 1\.       | Sample code number id number           |
+| 2\.       | Clump Thickness 1 - 10                 |
+| 3\.       | Uniformity of Cell Size 1 - 10         |
+| 4\.       | Uniformity of Cell Shape 1 - 10        |
+| 5\.       | Marginal Adhesion 1 - 10               |
+| 6\.       | Single Epithelial Cell Size 1 - 10     |
+| 7\.       | Bare Nuclei 1 - 10                     |
+| 8\.       | Bland Chromatin 1 - 10                 |
+| 9\.       | Normal Nucleoli 1 - 10                 |
+| 10\.       | Mitoses 1 - 10                         |
+| 11\.       | Class: (2 for benign, 4 for malignant) |
+
+## Etapa 1 - Pacotes e Bibliotecas
+
+Para este projeto, foram utilizados apenas 3 pacotes:
+
+```{r message=FALSE, warning=FALSE}
+# Tratamento de dados
+library(dplyr)
+
+# Modelo de classificação knn
+library(class)
+
+# Avaliação do modelo
+library(gmodels)
+
+```
+
+## Etapa 2 - Carregando os Dados
+
+O arquivo do database foi obtido em formato texto(.txt), sem nomes de colunas, e com observações separadas por vírgula. Portanto, foi necessário criar um vetor para nomear variáveis corretamente conforme o dicionário de dados.
+
+```{r message=FALSE, warning=FALSE}
+#Carregando dataset
+
+col_names <- c("ID","clump_thickness","uniformity_cell_size",
+               "uniformity_cell_shape", "marginal_adhesion",
+               "single_epithelial_cell_size", "bare_nuclei",
+               "bland_chromatin","normal_nucleoli", "mitoses",
+               "class")
+
+# Backup dos dados não tratados
+dados_bruto <- read.table("breast-cancer-wisconsin.data", header = FALSE, 
+                    sep = ",", dec = ".", col.names = col_names)
+
+# Df para tratamento dos dados
+dados <- dados_bruto
+
+```
+
+## Etapa 3 - Exploração e Tratamento dos Dados
+
+Uma vez carregados os dados, é necessário realizar a adequação dos mesmos ao modelo preditivo que será utilizado. Para isso, elimina-se as variáveis irrelevantes, como o ID e os valores NA, neste caso representados pelo caracter "?" e presentes apenas em uma das colunas, conforme o dicionário de dados. Além disso é necessário adequar os tipos das variáveis, fatorizando a variável alvo "Class", por exemplo.
+
+```{r message=FALSE, warning=FALSE}
+# Estudando NAs
+any(is.na(dados))
+qtd_vazios <-  100 * unlist(dados %>% filter(bare_nuclei == "?") %>% count()) / length(dados$bare_nuclei)
+qtd_vazios # 2.3% de NAs (16 observações de 699) -> dropar 
+
+# Excluindo linhas com NA
+dados <- dados[dados$bare_nuclei != "?",]
+
+str(dados)
+
+# Removendo a coluna ID (irelevante/prejudicial para o modelo preditivo)
+dados <- dados [-1]
+str(dados)
+
+# Tranformando os tipos de dados para Numérico
+dados[c(1:9)] <- sapply(dados[c(1:9)], as.numeric)
+
+# Fatorizando a coluna Class
+table(dados$class)
+dados$class <- factor(dados$class, levels = c(2,4), 
+                      labels = c("Benigno", "Maligno"))
+str(dados)
+
+# Verificando a proporção de Class
+round(prop.table(table(dados$class)) * 100, digits = 1)
+```
+
+## Etapa 4 - Modelo Preditivo
+
+Com os dados tratados, é possível partir para a criação, treinamento e avaliação do modelo preditivo. O modelo escolhido foi o modelo de classificação KNN - K Nearest Neighbour.
+
+```{r message=FALSE, warning=FALSE}
+# Divisão dados treino e teste
+d_treino <- dados[1:480,1:9] # ~ 70%
+d_teste <- dados [481:683,1:9] # ~ 30%
+
+# Labels
+d_treino_labels <- dados[1:480,10]
+d_teste_labels <- dados [481:683,10]
+
+# Criando e treinando o modelo
+modelo <- knn(train = d_treino, test = d_teste, cl = d_treino_labels, k=21)
+
+# Avaliando modelo
+CrossTable(x = d_teste_labels, y = modelo, prop.chisq = FALSE)
+
+```
+
+Nota-se que o modelo pôde atingir uma taxa de \~100% de acertos para os dados de teste fornecidos, indicando que é um modelo altamente eficiente para a previsão da classe do câncer de mama através dos critérios e variáveis utilizadas. Por se tratar de um tema de saúde e que envolve vidas, é importante que as taxas de eficiência de modelos preditivos nesta área sejam tão altas quanto possível.
