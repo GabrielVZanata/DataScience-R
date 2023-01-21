@@ -66,3 +66,4 @@ modelo <- knn(train = d_treino, test = d_teste, cl = d_treino_labels, k=21)
 # Avaliando modelo
 CrossTable(x = d_teste_labels, y = modelo, prop.chisq = FALSE)
 
+summary(modelo)
